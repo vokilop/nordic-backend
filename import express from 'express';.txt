@@ -1,0 +1,44 @@
+import express from 'express';
+import Stripe from 'stripe';
+import cors from 'cors';
+
+const app = express();
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+
+app.use(cors());
+app.use(express.json());
+
+app.post('/create-checkout-session', async (req, res) => {
+  try {
+    const { cart } = req.body;
+
+    const line_items = cart.map(item => ({
+      price_data: {
+        currency: 'sek',
+        product_data: {
+          name: item.product,
+        },
+        unit_amount: item.price * 100,
+      },
+      quantity: 1,
+    }));
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items,
+      mode: 'payment',
+      success_url: 'https://dinfrontend.com/success',
+      cancel_url: 'https://dinfrontend.com/cancel',
+    });
+
+    res.json({ id: session.id });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Något gick fel' });
+  }
+});
+
+const port = process.env.PORT || 10000;
+app.listen(port, () => {
+  console.log(`Servern kör på port ${port}`);
+});
